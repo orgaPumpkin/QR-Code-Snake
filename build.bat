@@ -1,0 +1,1 @@
+ml snake.asm /link /NOLOGO /NODEFAULTLIB /SUBSYSTEM:CONSOLE /ENTRY:START /MERGE:.rdata=. /MERGE:.pdata=. /MERGE:.text=. /SECTION:.,ER /ALIGN:16 kernel32.lib
