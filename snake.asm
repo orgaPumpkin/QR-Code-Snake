@@ -5,6 +5,12 @@ Beep PROTO STDCALL :DWORD,:DWORD
 
 GetStdHandle PROTO STDCALL :DWORD
 
+
+SystemFunction036 PROTO STDCALL :DWORD,:DWORD
+  ; _Out_ PVOID RandomBuffer,
+  ; _In_  ULONG RandomBufferLength
+
+
 ReadConsoleOutputCharacter PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 	; _In_	HANDLE	hConsoleOutput,
 	; _Out_	LPTSTR	lpCharacter,
@@ -79,13 +85,14 @@ START:
 	call WRITECHARAT
 
 	mov ecx, BORADSIZE
+	add ecx, 2
 
 	BORDER:
 		;bottom
 		mov edx, BORADSIZE
+		add dx, 2
 		shl edx, 16
 		mov dx, cx
-		add dx, cx
 		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
@@ -94,7 +101,6 @@ START:
 		;top
 		mov edx, 0
 		mov dx, cx
-		add dx, cx
 		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
@@ -104,7 +110,7 @@ START:
 		mov edx, ecx
 		shl edx, 16
 		mov dx, BORADSIZE
-		add dx, BORADSIZE
+		add dx, 2
 		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
@@ -119,6 +125,36 @@ START:
 			pop ecx
 
 		loop BORDER
+
+	; apple
+    push 1
+    push offset CHAR
+    call SystemFunction036
+	mov eax, 0
+    mov ax, [CHAR]
+    xor edx, edx
+	mov ecx, BORADSIZE
+    div ecx
+    mov ax, dx
+	add ax, 1
+	shl eax, 16
+
+		push eax
+	push 1
+	push offset CHAR
+	call SystemFunction036
+	mov eax, 0
+    mov ax, [CHAR]
+	xor edx, edx
+	mov ecx, BORADSIZE
+    div ecx
+	pop eax
+	mov ax, dx
+	add ax, 1
+	
+	mov edx, eax
+	mov ax, 2665h
+	call WRITECHARAT
 
 	; beep
 	push 100
@@ -175,6 +211,7 @@ START:
 
 ;KERNEL32 FUNCTIONS:
 WRITECHARAT PROC	;CHAR STORED IN AX AND POSITION IN EDX
+	add dx, dx
 	mov [CHAR], ax
 
 	;pos
