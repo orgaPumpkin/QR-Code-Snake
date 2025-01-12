@@ -18,6 +18,7 @@ SetConsoleCursorPosition PROTO STDCALL :DWORD,:DWORD
 	; _In_ COORD  dwCursorPosition
 
 
+WriteConsoleA PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 WriteConsoleW PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 	;_In_             HANDLE  hConsoleOutput,
 	;_In_       const VOID    *lpBuffer,
@@ -42,7 +43,8 @@ SetConsoleMode PROTO STDCALL :DWORD,:DWORD
 BORADSIZE EQU 48
 
 .DATA
-	TITLEVAR DWORD 1BH, ']','0',';','S','N','A','K','E', 07H, 1BH, '[','1','9','6','m'
+	TITLEVAR BYTE 1BH, "]0;SNAKE", 07H, 1BH, "[1;96m"
+	CLS BYTE 1BH, "[H", 1BH, "[J"
 	HANDLE DWORD ?
 	HANDLEIN DWORD ?
 
@@ -74,15 +76,19 @@ START:
 
 	;SET CONSOLE TITLE & CURSOR OFF WITHT ANSI STRING
 	lea eax, [TITLEVAR]
-	mov LEN, 19
-	call WRITEBUFFER
+	mov LEN, 17
+	call WRITEBUFFERA
 
 		push 100
 		push 500
 	call Beep
 
+	; clear screen	
+	lea eax, [CLS]
+	mov LEN, 8
+	call WRITEBUFFERA
+
 	mov LEN, 1
-	
 	; main loop
 	WAITFORKEY:
 		call READKEY
@@ -124,8 +130,9 @@ START:
 		CONTINUE:
 		mov PREVKEY, al
 
-		push 100
-		push 500
+		; beep
+			push 100
+			push 500
 		call Beep
 	
 	jmp WAITFORKEY
@@ -140,6 +147,16 @@ WRITEBUFFER PROC	;STRING PNTR STORED IN EAX AND LENGTH TO WRITE IN LEN
 	CALL WriteConsoleW
 	RET
 WRITEBUFFER ENDP
+
+WRITEBUFFERA PROC	;STRING PNTR STORED IN EAX AND LENGTH TO WRITE IN LEN
+	PUSH 0
+	PUSH 0
+	PUSH LEN
+	PUSH EAX
+	PUSH HANDLE
+	CALL WriteConsoleA
+	RET
+WRITEBUFFERA ENDP
 
 READKEY PROC
 	;CHECK IF THERE ARE EVENTS TO BE READ:
