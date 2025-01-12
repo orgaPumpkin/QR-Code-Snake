@@ -40,16 +40,16 @@ SetConsoleMode PROTO STDCALL :DWORD,:DWORD
 	;_In_ HANDLE hConsoleHandle,
 	;_In_ DWORD  dwMode
 
-BORADSIZE EQU 48
+BORADSIZE EQU 20
 
 .DATA
-	TITLEVAR BYTE 1BH, "]0;SNAKE", 07H, 1BH, "[1;96m"
 	CLS BYTE 1BH, "[H", 1BH, "[J"
 	HANDLE DWORD ?
 	HANDLEIN DWORD ?
 
 	LEN DWORD ?
-	BUFFER BYTE 32 DUP(?)
+	BUFFER BYTE 32 DUP(' ')
+	CHAR WORD ?
 	READLEN DWORD ?
 	CHNGX DWORD ?
 	CHNGY DWORD ?
@@ -68,27 +68,63 @@ START:
 	call GetStdHandle	;RETURNS IN EAX
 	mov HANDLEIN, eax
 
-	;SET CONSOLE MODE ENSURING ANSI INPUT IS ALLOWED
-	mov eax, 05H	;ENABLE VIRTUAL TERMINAL
-	push eax
-	push HANDLE
-	call SetConsoleMode
-
-	;SET CONSOLE TITLE & CURSOR OFF WITHT ANSI STRING
-	lea eax, [TITLEVAR]
-	mov LEN, 17
-	call WRITEBUFFERA
-
-		push 100
-		push 500
-	call Beep
-
 	; clear screen	
 	lea eax, [CLS]
-	mov LEN, 8
+	mov LEN, 6
 	call WRITEBUFFERA
 
-	mov LEN, 1
+	; build borders
+	xor edx, edx
+	mov eax, 2588h
+	call WRITECHARAT
+
+	mov ecx, BORADSIZE
+
+	BORDER:
+		;bottom
+		mov edx, BORADSIZE
+		shl edx, 16
+		mov dx, cx
+		add dx, cx
+		mov eax, 2588h
+			push ecx
+		call WRITECHARAT
+			pop ecx
+			
+		;top
+		mov edx, 0
+		mov dx, cx
+		add dx, cx
+		mov eax, 2588h
+			push ecx
+		call WRITECHARAT
+			pop ecx
+
+		; right
+		mov edx, ecx
+		shl edx, 16
+		mov dx, BORADSIZE
+		add dx, BORADSIZE
+		mov eax, 2588h
+			push ecx
+		call WRITECHARAT
+			pop ecx
+
+		; left
+		mov edx, ecx
+		shl edx, 16
+		mov eax, 2588h
+			push ecx
+		call WRITECHARAT
+			pop ecx
+
+		loop BORDER
+
+	; beep
+	push 100
+	push 500
+	call Beep
+
 	; main loop
 	WAITFORKEY:
 		call READKEY
@@ -138,6 +174,39 @@ START:
 	jmp WAITFORKEY
 
 ;KERNEL32 FUNCTIONS:
+WRITECHARAT PROC	;CHAR STORED IN AX AND POSITION IN EDX
+	mov [CHAR], ax
+
+	;pos
+		push edx
+	push edx
+	push HANDLE
+	call SetConsoleCursorPosition
+
+	; print char
+	PUSH 0
+	PUSH 0
+	PUSH 1
+	PUSH offset CHAR
+	PUSH HANDLE
+	CALL WriteConsoleW
+		pop edx
+
+	inc edx
+	push edx
+	push HANDLE
+	call SetConsoleCursorPosition
+
+	PUSH 0
+	PUSH 0
+	PUSH 1
+	PUSH offset CHAR
+	PUSH HANDLE
+	CALL WriteConsoleW
+
+	RET
+WRITECHARAT ENDP
+
 WRITEBUFFER PROC	;STRING PNTR STORED IN EAX AND LENGTH TO WRITE IN LEN
 	PUSH 0
 	PUSH 0
