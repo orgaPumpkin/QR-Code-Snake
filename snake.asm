@@ -10,6 +10,9 @@ SystemFunction036 PROTO STDCALL :DWORD,:DWORD
   ; _Out_ PVOID RandomBuffer,
   ; _In_  ULONG RandomBufferLength
 
+SetConsoleTextAttribute PROTO STDCALL :DWORD,:DWORD
+	; _In_ HANDLE hConsoleOutput,
+	; _In_ WORD   wAttributes
 
 ReadConsoleOutputCharacter PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 	; _In_	HANDLE	hConsoleOutput,
@@ -24,7 +27,6 @@ SetConsoleCursorPosition PROTO STDCALL :DWORD,:DWORD
 	; _In_ COORD  dwCursorPosition
 
 
-WriteConsoleA PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 WriteConsoleW PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 	;_In_             HANDLE  hConsoleOutput,
 	;_In_       const VOID    *lpBuffer,
@@ -49,19 +51,18 @@ SetConsoleMode PROTO STDCALL :DWORD,:DWORD
 BORADSIZE EQU 20
 
 .DATA
-	CLS BYTE 1BH, "[H", 1BH, "[J"
+	CLS BYTE 1BH,0, "[",0,"H",0, 1BH, 0, "[",0,"J",0
 	HANDLE DWORD ?
 	HANDLEIN DWORD ?
 
 	LEN DWORD ?
 	BUFFER BYTE 32 DUP(' ')
-	CHAR WORD ?
+	CHAR WORD 2 DUP(0)
 	READLEN DWORD ?
 	CHNGX DWORD ?
 	CHNGY DWORD ?
 	PREVKEY BYTE ?
 	
-
 .CODE
 START:
 	;GET CONSOLE (OUT):
@@ -75,13 +76,18 @@ START:
 	mov HANDLEIN, eax
 
 	; clear screen	
-	lea eax, [CLS]
 	mov LEN, 6
-	call WRITEBUFFERA
+	mov eax, offset CLS
+	call WRITEBUFFER
 
 	; build borders
+	mov [CHAR], 2588h
+	mov [CHAR+2], 2588h
+		push 0Ah
+		push HANDLE
+	call SetConsoleTextAttribute
+
 	xor edx, edx
-	mov eax, 2588h
 	call WRITECHARAT
 
 	mov ecx, BORADSIZE
@@ -93,7 +99,6 @@ START:
 		add dx, 2
 		shl edx, 16
 		mov dx, cx
-		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
 			pop ecx
@@ -101,7 +106,6 @@ START:
 		;top
 		mov edx, 0
 		mov dx, cx
-		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
 			pop ecx
@@ -111,7 +115,6 @@ START:
 		shl edx, 16
 		mov dx, BORADSIZE
 		add dx, 2
-		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
 			pop ecx
@@ -119,7 +122,6 @@ START:
 		; left
 		mov edx, ecx
 		shl edx, 16
-		mov eax, 2588h
 			push ecx
 		call WRITECHARAT
 			pop ecx
@@ -127,34 +129,7 @@ START:
 		loop BORDER
 
 	; apple
-    push 1
-    push offset CHAR
-    call SystemFunction036
-	mov eax, 0
-    mov ax, [CHAR]
-    xor edx, edx
-	mov ecx, BORADSIZE
-    div ecx
-    mov ax, dx
-	add ax, 1
-	shl eax, 16
-
-		push eax
-	push 1
-	push offset CHAR
-	call SystemFunction036
-	mov eax, 0
-    mov ax, [CHAR]
-	xor edx, edx
-	mov ecx, BORADSIZE
-    div ecx
-	pop eax
-	mov ax, dx
-	add ax, 1
-	
-	mov edx, eax
-	mov ax, 2665h
-	call WRITECHARAT
+	call GEN_APPLE
 
 	; beep
 	push 100
@@ -209,13 +184,48 @@ START:
 	
 	jmp WAITFORKEY
 
+GEN_APPLE PROC
+	    push 1
+    push offset CHAR
+    call SystemFunction036
+	mov eax, 0
+    mov ax, [CHAR]
+    xor edx, edx
+	mov ecx, BORADSIZE
+    div ecx
+    mov ax, dx
+	add ax, 1
+	shl eax, 16
+
+		push eax
+	push 1
+	push offset CHAR
+	call SystemFunction036
+	mov eax, 0
+    mov ax, [CHAR]
+	xor edx, edx
+	mov ecx, BORADSIZE
+    div ecx
+		pop eax
+	mov ax, dx
+	add ax, 1
+		push eax
+	push 4
+	push HANDLE
+	call SetConsoleTextAttribute
+		pop edx
+	mov [CHAR], 2588h
+	mov [CHAR+2], 2588h
+	call WRITECHARAT
+	ret
+GEN_APPLE ENDP
+
 ;KERNEL32 FUNCTIONS:
-WRITECHARAT PROC	;CHAR STORED IN AX AND POSITION IN EDX
+WRITECHARAT PROC	;CHAR STORED IN CHAR AND POSITION IN EDX
+	; mul x by 2
 	add dx, dx
-	mov [CHAR], ax
 
 	;pos
-		push edx
 	push edx
 	push HANDLE
 	call SetConsoleCursorPosition
@@ -223,24 +233,10 @@ WRITECHARAT PROC	;CHAR STORED IN AX AND POSITION IN EDX
 	; print char
 	PUSH 0
 	PUSH 0
-	PUSH 1
+	PUSH 2
 	PUSH offset CHAR
 	PUSH HANDLE
 	CALL WriteConsoleW
-		pop edx
-
-	inc edx
-	push edx
-	push HANDLE
-	call SetConsoleCursorPosition
-
-	PUSH 0
-	PUSH 0
-	PUSH 1
-	PUSH offset CHAR
-	PUSH HANDLE
-	CALL WriteConsoleW
-
 	RET
 WRITECHARAT ENDP
 
@@ -253,16 +249,6 @@ WRITEBUFFER PROC	;STRING PNTR STORED IN EAX AND LENGTH TO WRITE IN LEN
 	CALL WriteConsoleW
 	RET
 WRITEBUFFER ENDP
-
-WRITEBUFFERA PROC	;STRING PNTR STORED IN EAX AND LENGTH TO WRITE IN LEN
-	PUSH 0
-	PUSH 0
-	PUSH LEN
-	PUSH EAX
-	PUSH HANDLE
-	CALL WriteConsoleA
-	RET
-WRITEBUFFERA ENDP
 
 READKEY PROC
 	;CHECK IF THERE ARE EVENTS TO BE READ:
