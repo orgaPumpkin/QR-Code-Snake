@@ -62,9 +62,31 @@ BORADSIZE EQU 20
 	CHNGX DWORD ?
 	CHNGY DWORD ?
 	PREVKEY BYTE ?
+
+	APPLE DWORD	000A000Dh
+	HEAD DWORD 	000A000Ah
+	TAIL DWORD 	000A0008h
 	
 .CODE
 START:
+	mov ebp, esp
+	sub esp, BORADSIZE
+
+	mov eax, TAIL
+	mov ebx, TAIL
+	and eax, 0FFFFh
+	mov ecx, BORADSIZE
+	mul ecx
+	mov ecx, TAIL
+	shr ecx, 16
+	add eax, ecx
+	add eax, ebp
+	
+	mov [eax], ebx
+	inc eax
+	inc ebx
+	mov [eax], ebx
+
 	;GET CONSOLE (OUT):
 	push -11	;get STD_OUTPUT_HANDLE 
 	call GetStdHandle	;RETURNS IN EAX
@@ -83,7 +105,7 @@ START:
 	; build borders
 	mov [CHAR], 2588h
 	mov [CHAR+2], 2588h
-		push 0Ah
+		push 08h
 		push HANDLE
 	call SetConsoleTextAttribute
 
@@ -129,7 +151,27 @@ START:
 		loop BORDER
 
 	; apple
-	call GEN_APPLE
+		push 4
+		push HANDLE
+	call SetConsoleTextAttribute
+	mov edx, APPLE
+	call WRITECHARAT
+
+	; head
+		push 0Ah
+		push HANDLE
+	call SetConsoleTextAttribute
+	mov edx, HEAD
+	call WRITECHARAT
+	; body
+		push 2h
+		push HANDLE
+	call SetConsoleTextAttribute
+	mov edx, HEAD
+	dec edx
+	call WRITECHARAT
+	mov edx, TAIL
+	call WRITECHARAT
 
 	; beep
 	push 100
@@ -183,6 +225,7 @@ START:
 		call Beep
 	
 	jmp WAITFORKEY
+	mov esp, ebp
 
 GEN_APPLE PROC
 	    push 1
