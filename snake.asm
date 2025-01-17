@@ -50,7 +50,7 @@ SetConsoleMode PROTO STDCALL :DWORD,:DWORD
 
 GetTickCount PROTO STDCALL
 
-BORADSIZE EQU 20
+BOARDSIZE EQU 20
 
 .DATA
 	CLS BYTE 1BH,0, "[",0,"H",0, 1BH, 0, "[",0,"J",0
@@ -61,29 +61,41 @@ BORADSIZE EQU 20
 	BUFFER BYTE 32 DUP(' ')
 	CHAR WORD 2 DUP(0)
 	READLEN DWORD ?
-	CHNGX DWORD ?
-	CHNGY DWORD ?
+	CHNGX DWORD 1
+	CHNGY DWORD 0
 
 	PREVKEY BYTE ?
 	PREVTIME DWORD ?
 
 	APPLE DWORD	000A000Dh
 	HEAD DWORD 	000A000Ah
+	NEXT_HEAD DWORD 000A000Bh
 	TAIL DWORD 	000A0008h
 	
 .CODE
 START:
-	sub esp, BORADSIZE*BORADSIZE*4
+	; initialize stack
+	mov ecx, BOARDSIZE*BOARDSIZE
+	STACK_ZERO:
+		push 0
+		loop STACK_ZERO
 	mov ebp, esp
 
+	; insert starting position to stack
 	mov eax, TAIL
-	mov edx, TAIL+1
 	call STACK_POS
-	mov SS:[eax], edx
-
-	inc eax
+	mov edx, TAIL
 	inc edx
 	mov SS:[eax], edx
+
+	add eax, 4
+	inc edx
+	mov SS:[eax], edx
+
+	mov eax, APPLE
+	call STACK_POS
+	mov ebx, -1
+	mov SS:[eax], ebx
 
 	;GET CONSOLE (OUT):
 	push -11	;get STD_OUTPUT_HANDLE 
@@ -110,12 +122,12 @@ START:
 	xor edx, edx
 	call WRITECHARAT
 
-	mov ecx, BORADSIZE
+	mov ecx, BOARDSIZE
 	add ecx, 2
 
 	BORDER:
 		;bottom
-		mov edx, BORADSIZE
+		mov edx, BOARDSIZE
 		add dx, 2
 		shl edx, 16
 		mov dx, cx
@@ -133,7 +145,7 @@ START:
 		; right
 		mov edx, ecx
 		shl edx, 16
-		mov dx, BORADSIZE
+		mov dx, BOARDSIZE
 		add dx, 2
 			push ecx
 		call WRITECHARAT
@@ -225,45 +237,131 @@ START:
 	jmp WAITFORKEY
 
 	TICK:
+	push 100
+	push 500
+	call Beep
+
+	; update time
 	call GetTickCount
 	mov PREVTIME, eax
 
-	; beep
-		push 100
-		push 500
-	call Beep
+	xor ebx, ebx
+	mov eax, HEAD
+
+	; check if failed
+	; x
+	mov ecx, BOARDSIZE
+	inc ecx
+	mov bx, ax
+	add ebx, CHNGX
+	jz FAIL
+	cmp ebx, ecx
+	je FAIL
+
+	; y
+	shr eax, 16
+	add eax, CHNGY
+	jz FAIL
+	cmp eax, ecx
+	je FAIL
+
+	shl eax, 16
+	add eax, ebx
+	mov NEXT_HEAD, eax
+
+	; move tail:
+	; move tail only if didn't eat
+	call STACK_POS
+	mov ebx, SS:[eax]	; check next spot
+	cmp ebx, -1	
+	jne NOT_APPLE
+
+	; if apple
+	call GEN_APPLE
+	jmp SKIPTAIL
+
+	NOT_APPLE:
+	; remove tail from screen
+	mov edx, TAIL
+	mov [CHAR], ' '
+	mov [CHAR+2], ' '
+	call WRITECHARAT
+	mov [CHAR], 2588h
+	mov [CHAR+2], 2588h
+
+	; update tail
+	mov eax, TAIL
+	call STACK_POS
+	mov ebx, SS:[eax]	; get next tail pos
+	mov TAIL, ebx	; update tail
+	mov ecx, 0
+	mov SS:[eax], ecx ; clear
+
+	SKIPTAIL:
+	; move head
+	mov eax, NEXT_HEAD
+	call STACK_POS
+	mov ebx, SS:[eax]
+	cmp ebx, 0
+	jg FAIL	; not empty nor apple
+
+	mov eax, HEAD
+	call STACK_POS
+	mov ebx, NEXT_HEAD
+	mov SS:[eax], ebx
+
+		push 2h
+		push HANDLE
+	call SetConsoleTextAttribute
+	mov edx, HEAD
+	call WRITECHARAT
+
+	mov eax, NEXT_HEAD
+	mov HEAD, eax
+
+		push 0Ah
+		push HANDLE
+	call SetConsoleTextAttribute
+	mov edx, HEAD
+	call WRITECHARAT
 
 	jmp WAITFORKEY
 
-	mov esp, ebp
+	FAIL:
+	push 100
+	push 300
+	call Beep
 
 STACK_POS PROC ; pos in eax ret in eax
 	xor ebx, ebx
 	mov bx, ax
 	shr eax, 16
 	; y in eax and x in ebx
-	mov ecx, BORADSIZE
+	mov ecx, BOARDSIZE
+	xor edx, edx
 	mul ecx
 	add eax, ebx
-	shr eax, 2
+	shl eax, 2
 	add eax, ebp
 	ret
 STACK_POS ENDP
 
 
 GEN_APPLE PROC
+	; x
 	    push 1
     push offset CHAR
     call SystemFunction036
 	mov eax, 0
     mov ax, [CHAR]
     xor edx, edx
-	mov ecx, BORADSIZE
+	mov ecx, BOARDSIZE
     div ecx
     mov ax, dx
 	add ax, 1
 	shl eax, 16
 
+	; y
 		push eax
 	push 1
 	push offset CHAR
@@ -271,12 +369,16 @@ GEN_APPLE PROC
 	mov eax, 0
     mov ax, [CHAR]
 	xor edx, edx
-	mov ecx, BORADSIZE
+	mov ecx, BOARDSIZE
     div ecx
 		pop eax
+	; connect
 	mov ax, dx
 	add ax, 1
 		push eax
+	call STACK_POS
+	mov DWORD PTR SS:[eax], -1
+	
 	push 4
 	push HANDLE
 	call SetConsoleTextAttribute
