@@ -14,18 +14,9 @@ SetConsoleTextAttribute PROTO STDCALL :DWORD,:DWORD
 	; _In_ HANDLE hConsoleOutput,
 	; _In_ WORD   wAttributes
 
-ReadConsoleOutputCharacter PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
-	; _In_	HANDLE	hConsoleOutput,
-	; _Out_	LPTSTR	lpCharacter,
-	; _In_	DWORD	nLength,
-	; _In_	COORD	dwReadCoord,
-	; _Out_	LPDWORD	lpNumberOfCharsRead
-
-
 SetConsoleCursorPosition PROTO STDCALL :DWORD,:DWORD
 	; _In_ HANDLE hConsoleOutput,
 	; _In_ COORD  dwCursorPosition
-
 
 WriteConsoleW PROTO STDCALL :DWORD,:DWORD,:DWORD,:DWORD,:DWORD
 	;_In_             HANDLE  hConsoleOutput,
@@ -44,10 +35,6 @@ GetNumberOfConsoleInputEvents PROTO STDCALL :DWORD,:DWORD
 	;_In_  HANDLE  hConsoleInput,
 	;_Out_ LPDWORD lpcNumberOfEvents
 
-SetConsoleMode PROTO STDCALL :DWORD,:DWORD
-	;_In_ HANDLE hConsoleHandle,
-	;_In_ DWORD  dwMode
-
 GetTickCount PROTO STDCALL
 
 BOARDSIZE EQU 20
@@ -58,7 +45,7 @@ BOARDSIZE EQU 20
 	HANDLEIN DWORD ?
 
 	LEN DWORD ?
-	BUFFER BYTE 32 DUP(' ')
+	BUFFER BYTE 32 DUP(?)
 	CHAR WORD 2 DUP(0)
 	READLEN DWORD ?
 	CHNGX DWORD 1
@@ -94,8 +81,7 @@ START:
 
 	mov eax, APPLE
 	call STACK_POS
-	mov ebx, -1
-	mov SS:[eax], ebx
+	mov SS:[eax], DWORD PTR -1
 
 	;GET CONSOLE (OUT):
 	push -11	;get STD_OUTPUT_HANDLE 
@@ -108,13 +94,15 @@ START:
 	mov HANDLEIN, eax
 
 	; clear screen	
-	mov LEN, 6
-	mov eax, offset CLS
-	call WRITEBUFFER
+	push 0
+	push 0
+	push 6
+	push offset CLS
+	push HANDLE
+	CALL WriteConsoleW
 
 	; build borders
 	mov [CHAR], 2588h
-	mov [CHAR+2], 2588h
 		push 08h
 		push HANDLE
 	call SetConsoleTextAttribute
@@ -124,11 +112,11 @@ START:
 
 	mov ecx, BOARDSIZE
 	add ecx, 2
+	mov edi, ecx
 
 	BORDER:
 		;bottom
-		mov edx, BOARDSIZE
-		add dx, 2
+		mov edx, edi
 		shl edx, 16
 		mov dx, cx
 			push ecx
@@ -145,8 +133,7 @@ START:
 		; right
 		mov edx, ecx
 		shl edx, 16
-		mov dx, BOARDSIZE
-		add dx, 2
+		mov dx, di
 			push ecx
 		call WRITECHARAT
 			pop ecx
@@ -198,8 +185,6 @@ START:
 		call READKEY
 		cmp al, 00H
 		je WAITFORKEY	; if no key
-		cmp al, PREVKEY
-		je WAITFORKEY	; if same key
 
 		; check key
 		cmp al, '%'	; left
@@ -272,8 +257,7 @@ START:
 	; move tail:
 	; move tail only if didn't eat
 	call STACK_POS
-	mov ebx, SS:[eax]	; check next spot
-	cmp ebx, -1	
+	cmp SS:[eax], DWORD PTR -1 ; check next spot
 	jne NOT_APPLE
 
 	; if apple
@@ -284,25 +268,21 @@ START:
 	; remove tail from screen
 	mov edx, TAIL
 	mov [CHAR], ' '
-	mov [CHAR+2], ' '
 	call WRITECHARAT
 	mov [CHAR], 2588h
-	mov [CHAR+2], 2588h
 
 	; update tail
 	mov eax, TAIL
 	call STACK_POS
 	mov ebx, SS:[eax]	; get next tail pos
 	mov TAIL, ebx	; update tail
-	mov ecx, 0
-	mov SS:[eax], ecx ; clear
+	mov SS:[eax], DWORD PTR 0 ; clear
 
 	SKIPTAIL:
 	; move head
 	mov eax, NEXT_HEAD
 	call STACK_POS
-	mov ebx, SS:[eax]
-	cmp ebx, 0
+	cmp SS:[eax], DWORD PTR 0
 	jg FAIL	; not empty nor apple
 
 	mov eax, HEAD
@@ -351,33 +331,30 @@ STACK_POS ENDP
 
 
 GEN_APPLE PROC
-	; x
-	    push 1
+	; generate random numbers
+	    push 2
     push offset CHAR
     call SystemFunction036
-	mov eax, 0
-    mov ax, [CHAR]
-    xor edx, edx
-	mov ecx, BOARDSIZE
-    div ecx
-    mov ax, dx
-	add ax, 1
-	shl eax, 16
+	xor eax, eax
+	xor edx, edx
 
-	; y
-		push eax
-	push 1
-	push offset CHAR
-	call SystemFunction036
-	mov eax, 0
     mov ax, [CHAR]
 	xor edx, edx
 	mov ecx, BOARDSIZE
     div ecx
-		pop eax
-	; connect
-	mov ax, dx
-	add ax, 1
+	inc dx
+    	push dx
+
+	mov ax, [CHAR+1]
+	xor edx, edx
+	mov ecx, BOARDSIZE;;;;
+    div ecx
+	inc dx
+
+	; construct coord
+		pop ax
+	shl eax, 16
+	add eax, edx
 		push eax
 
 	call STACK_POS
@@ -390,7 +367,6 @@ GEN_APPLE PROC
 	call SetConsoleTextAttribute
 		pop edx
 	mov [CHAR], 2588h
-	mov [CHAR+2], 2588h
 	call WRITECHARAT
 	ret
 GEN_APPLE ENDP
@@ -398,12 +374,15 @@ GEN_APPLE ENDP
 ;KERNEL32 FUNCTIONS:
 WRITECHARAT PROC	;CHAR STORED IN CHAR AND POSITION IN EDX
 	; mul x by 2
-	add dx, dx
+	shl dx, 1
 
 	;pos
 	push edx
 	push HANDLE
 	call SetConsoleCursorPosition
+
+	mov dx, [CHAR]
+	mov [CHAR+2], dx
 
 	; print char
 	PUSH 0
@@ -414,16 +393,6 @@ WRITECHARAT PROC	;CHAR STORED IN CHAR AND POSITION IN EDX
 	CALL WriteConsoleW
 	RET
 WRITECHARAT ENDP
-
-WRITEBUFFER PROC	;STRING PNTR STORED IN EAX AND LENGTH TO WRITE IN LEN
-	PUSH 0
-	PUSH 0
-	PUSH LEN
-	PUSH EAX
-	PUSH HANDLE
-	CALL WriteConsoleW
-	RET
-WRITEBUFFER ENDP
 
 READKEY PROC
 	;CHECK IF THERE ARE EVENTS TO BE READ:
