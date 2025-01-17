@@ -1,0 +1,2 @@
+ml /c /coff snake.asm
+crinkler.exe /NODEFAULTLIB /ENTRY:START /SUBSYSTEM:CONSOLE /TINYHEADER /NOINITIALIZERS /UNSAFEIMPORT /ORDERTRIES:1000 /TINYIMPORT /OUT:snake.exe kernel32.lib Advapi32.lib snake.obj
