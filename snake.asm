@@ -37,7 +37,7 @@ GetNumberOfConsoleInputEvents PROTO STDCALL :DWORD,:DWORD
 
 GetTickCount PROTO STDCALL
 
-BOARDSIZE EQU 20
+BOARDSIZE EQU 10
 
 .DATA
 	CLS BYTE 1BH,0, "[",0,"H",0, 1BH, 0, "[",0,"J",0
@@ -51,13 +51,12 @@ BOARDSIZE EQU 20
 	CHNGX DWORD 1
 	CHNGY DWORD 0
 
-	PREVKEY BYTE ?
 	PREVTIME DWORD ?
 
-	APPLE DWORD	000A000Dh
-	HEAD DWORD 	000A000Ah
-	NEXT_HEAD DWORD 000A000Bh
-	TAIL DWORD 	000A0008h
+	APPLE DWORD	?
+	HEAD DWORD 	?
+	NEXT_HEAD DWORD ?
+	TAIL DWORD 	?
 	
 .CODE
 START:
@@ -67,6 +66,20 @@ START:
 		push 0
 		loop STACK_ZERO
 	mov ebp, esp
+
+	; generate starting position
+	mov eax, BOARDSIZE
+	shr eax, 1
+	mov ebx, eax
+	shl eax, 16
+	add eax, ebx
+
+	mov HEAD, eax
+	sub eax, 2
+	mov TAIL, eax
+	add eax, 4
+	mov APPLE, eax
+
 
 	; insert starting position to stack
 	mov eax, TAIL
@@ -111,7 +124,7 @@ START:
 	call WRITECHARAT
 
 	mov ecx, BOARDSIZE
-	add ecx, 2
+	inc ecx
 	mov edi, ecx
 
 	BORDER:
@@ -200,25 +213,21 @@ START:
 		LEFT:
 			mov CHNGX, -1
 			mov CHNGY, 0
-		jmp CONTINUE
+		jmp WAITFORKEY
 
 		RIGHT:
 			mov CHNGX, 1
 			mov CHNGY, 0
-		jmp CONTINUE
+		jmp WAITFORKEY
 
 		UP:
 			mov CHNGX, 0
 			mov CHNGY, -1
-		jmp CONTINUE
+		jmp WAITFORKEY
 
 		DOWN:
 			mov CHNGX, 0
-			mov CHNGY, 1
-
-		CONTINUE:
-		mov PREVKEY, al
-	
+			mov CHNGY, 1	
 	jmp WAITFORKEY
 
 	TICK:
@@ -236,7 +245,7 @@ START:
 	; check if failed
 	; x
 	mov ecx, BOARDSIZE
-	add ecx, 2
+	inc ecx
 	mov bx, ax
 	add ebx, CHNGX
 	jz FAIL
@@ -298,6 +307,8 @@ START:
 
 	mov eax, NEXT_HEAD
 	mov HEAD, eax
+		call STACK_POS
+	mov SS:[eax], DWORD PTR -2
 
 		push 0Ah
 		push HANDLE
@@ -331,9 +342,10 @@ STACK_POS ENDP
 
 
 GEN_APPLE PROC
+	RAND:
 	; generate random numbers
 	    push 2
-    push offset CHAR
+    	push offset CHAR
     call SystemFunction036
 	xor eax, eax
 	xor edx, edx
@@ -347,7 +359,6 @@ GEN_APPLE PROC
 
 	mov ax, [CHAR+1]
 	xor edx, edx
-	mov ecx, BOARDSIZE;;;;
     div ecx
 	inc dx
 
@@ -355,13 +366,16 @@ GEN_APPLE PROC
 		pop ax
 	shl eax, 16
 	add eax, edx
-		push eax
+	mov edx, eax
 
+		push edx
 	call STACK_POS
+		pop edx
 	cmp SS:[eax], DWORD PTR 0
-	jne GEN_APPLE
+	jne RAND
 
 	mov DWORD PTR SS:[eax], -1
+		push edx
 	push 4
 	push HANDLE
 	call SetConsoleTextAttribute
