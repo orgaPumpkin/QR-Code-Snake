@@ -48,6 +48,8 @@ SetConsoleMode PROTO STDCALL :DWORD,:DWORD
 	;_In_ HANDLE hConsoleHandle,
 	;_In_ DWORD  dwMode
 
+GetTickCount PROTO STDCALL
+
 BORADSIZE EQU 20
 
 .DATA
@@ -61,7 +63,9 @@ BORADSIZE EQU 20
 	READLEN DWORD ?
 	CHNGX DWORD ?
 	CHNGY DWORD ?
+
 	PREVKEY BYTE ?
+	PREVTIME DWORD ?
 
 	APPLE DWORD	000A000Dh
 	HEAD DWORD 	000A000Ah
@@ -69,23 +73,17 @@ BORADSIZE EQU 20
 	
 .CODE
 START:
+	sub esp, BORADSIZE*BORADSIZE*4
 	mov ebp, esp
-	sub esp, BORADSIZE
 
 	mov eax, TAIL
-	mov ebx, TAIL
-	and eax, 0FFFFh
-	mov ecx, BORADSIZE
-	mul ecx
-	mov ecx, TAIL
-	shr ecx, 16
-	add eax, ecx
-	add eax, ebp
-	
-	mov [eax], ebx
+	mov edx, TAIL+1
+	call STACK_POS
+	mov SS:[eax], edx
+
 	inc eax
-	inc ebx
-	mov [eax], ebx
+	inc edx
+	mov SS:[eax], edx
 
 	;GET CONSOLE (OUT):
 	push -11	;get STD_OUTPUT_HANDLE 
@@ -173,18 +171,23 @@ START:
 	mov edx, TAIL
 	call WRITECHARAT
 
-	; beep
-	push 100
-	push 500
-	call Beep
+	; get time
+	call GetTickCount
+	mov PREVTIME, eax
 
 	; main loop
 	WAITFORKEY:
+		; if enugh time passed, tick
+		call GetTickCount
+		sub eax, PREVTIME
+		cmp eax, 500
+		ja TICK
+
 		call READKEY
 		cmp al, 00H
-		je WAITFORKEY	; if no key, continue waiting
+		je WAITFORKEY	; if no key
 		cmp al, PREVKEY
-		je WAITFORKEY	; if same key, continue waiting
+		je WAITFORKEY	; if same key
 
 		; check key
 		cmp al, '%'	; left
@@ -218,14 +221,35 @@ START:
 
 		CONTINUE:
 		mov PREVKEY, al
-
-		; beep
-			push 100
-			push 500
-		call Beep
 	
 	jmp WAITFORKEY
+
+	TICK:
+	call GetTickCount
+	mov PREVTIME, eax
+
+	; beep
+		push 100
+		push 500
+	call Beep
+
+	jmp WAITFORKEY
+
 	mov esp, ebp
+
+STACK_POS PROC ; pos in eax ret in eax
+	xor ebx, ebx
+	mov bx, ax
+	shr eax, 16
+	; y in eax and x in ebx
+	mov ecx, BORADSIZE
+	mul ecx
+	add eax, ebx
+	shr eax, 2
+	add eax, ebp
+	ret
+STACK_POS ENDP
+
 
 GEN_APPLE PROC
 	    push 1
