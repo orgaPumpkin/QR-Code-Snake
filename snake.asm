@@ -192,7 +192,7 @@ START:
 		; if enugh time passed, tick
 		call GetTickCount
 		sub eax, PREVTIME
-		cmp eax, 500
+		cmp eax, 200
 		ja TICK
 
 		call READKEY
@@ -238,7 +238,7 @@ START:
 
 	TICK:
 	push 100
-	push 500
+	push 450
 	call Beep
 
 	; update time
@@ -251,7 +251,7 @@ START:
 	; check if failed
 	; x
 	mov ecx, BOARDSIZE
-	inc ecx
+	add ecx, 2
 	mov bx, ax
 	add ebx, CHNGX
 	jz FAIL
@@ -328,14 +328,17 @@ START:
 	jmp WAITFORKEY
 
 	FAIL:
-	push 100
-	push 300
+	push 500
+	push 200
 	call Beep
+	ret
 
 STACK_POS PROC ; pos in eax ret in eax
 	xor ebx, ebx
 	mov bx, ax
 	shr eax, 16
+	dec eax
+	dec ebx
 	; y in eax and x in ebx
 	mov ecx, BOARDSIZE
 	xor edx, edx
@@ -376,9 +379,12 @@ GEN_APPLE PROC
 	mov ax, dx
 	add ax, 1
 		push eax
+
 	call STACK_POS
+	cmp SS:[eax], DWORD PTR 0
+	jne GEN_APPLE
+
 	mov DWORD PTR SS:[eax], -1
-	
 	push 4
 	push HANDLE
 	call SetConsoleTextAttribute
