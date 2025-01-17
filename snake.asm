@@ -308,8 +308,8 @@ START:
 	jmp WAITFORKEY
 
 	FAIL:
-	push 500
-	push 200
+	push 1000
+	push 300
 	call Beep
 	ret
 
