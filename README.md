@@ -2,6 +2,9 @@
 # A snake game for Windows, written entirely in Assembly.
 This snake game is written in x86 asm, only using the WinAPI to make it as small as possible.
 
+## A scannable QR Code that stores the entire game:
+![QR Code](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/QRCode.png?raw=true)
+
 ## Run It Yourself
 Running the game is as simple as downloading the [snake.exe](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/snake.exe) file and running it.
 
@@ -29,6 +32,3 @@ and extruct the x32 version to the repo's folder as `crinkler.exe`).
 ## How It Was Made
 When I started this project, I had no idea how to make a game in Assembly. I had to learn how to use the WinAPI to
  draw to the screen and to handle input. It was a lot of fun, and I learned a lot.
-
-## A scannable QR Code that stores the entire game:
-![QR Code](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/QRCode.png?raw=true)
