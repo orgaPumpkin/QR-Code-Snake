@@ -2,13 +2,14 @@
 # A snake game for Windows, written entirely in Assembly.
 This snake game is written in x86 asm, only using the WinAPI to make it as small as possible.
 
-## A scannable QR Code that stores the entire game:
-![QR Code](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/QRCode.png?raw=true)
-
 ## Run It Yourself
 Running the game is as simple as downloading the [snake.exe](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/snake.exe) file and running it.
 
 Note: Windows Defender might detect the exe as a virus, so you'll need to open the protection history and click revert.
+
+## A scannable QR Code that stores the entire game:
+Scan the code, rename the downloaded file to an .exe file and run it! (you might need to copy and paste the url into the browser manualy.)
+![QR Code](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/QRCode.png?raw=true)
 
 ## Build It Yourself
 First thing, clone the repository to your machine:
