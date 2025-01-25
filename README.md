@@ -8,6 +8,8 @@ This snake game is written in x86 asm, only using the WinAPI to make it as small
 ## Run It Yourself
 Running the game is as simple as downloading the [snake.exe](https://github.com/orgaPumpkin/QR-Code-Snake/blob/main/snake.exe) file and running it.
 
+Note: Windows Defender might detect the exe as a virus, so you'll need to open the protection history and click revert.
+
 ## Build It Yourself
 First thing, clone the repository to your machine:
 
